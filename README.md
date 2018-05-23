@@ -6,7 +6,7 @@ Usage:
 
 > python train.py PATH
 
-Input directory should structured like this (as with torchvision.datasets.ImageFolder):
+Input directory should be structured like this (as with torchvision.datasets.ImageFolder):
 
 > PATH/class1 <br/>
 > PATH/class2 <br/>
