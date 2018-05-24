@@ -15,9 +15,10 @@ from torchvision import datasets, transforms, utils
 from model import Generator, Discriminator
 
 parser = argparse.ArgumentParser(description='Self-Attention GAN trainer')
-parser.add_argument('--batch', default=64, help='batch size')
-parser.add_argument('--iter', default=200000, help='maximum iterations')
-parser.add_argument('--code', default=128,
+parser.add_argument('--batch', default=64, type=int, help='batch size')
+parser.add_argument('--iter', default=200000, type=int,
+                    help='maximum iterations')
+parser.add_argument('--code', default=128, type=int,
                     help='size of code to input generator')
 parser.add_argument('path', metavar='PATH', type=str,
                     help='Path to image directory')
