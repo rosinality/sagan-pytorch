@@ -240,6 +240,6 @@ class Discriminator(nn.Module):
         out = out.sum(2)
         embed = self.embed(class_id)
         prod = (out * embed).sum(1)
-        out = self.linear(out)
+        out = self.linear(out).squeeze()
 
         return out + prod
