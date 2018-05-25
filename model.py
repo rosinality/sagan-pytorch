@@ -123,7 +123,7 @@ class UpsampleConvBlock(nn.Module):
             shape = out.shape
             flatten = out.view(shape[0], shape[1], -1)
             query = self.query(flatten).permute(0, 2, 1)
-            key = self.query(flatten)
+            key = self.key(flatten)
             value = self.value(flatten)
             #print(key.shape, value.shape)
             query_key = torch.bmm(query, key)
