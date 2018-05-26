@@ -238,8 +238,8 @@ class Discriminator(nn.Module):
         out = self.conv(input)
         out = out.view(out.size(0), out.size(1), -1)
         out = out.sum(2)
+        out_linear = self.linear(out).squeeze()
         embed = self.embed(class_id)
         prod = (out * embed).sum(1)
-        out = self.linear(out).squeeze()
 
-        return out + prod
+        return out_linear + prod
