@@ -15,9 +15,10 @@ from torchvision import datasets, transforms, utils
 from model import Generator, Discriminator
 
 parser = argparse.ArgumentParser(description='Self-Attention GAN trainer')
-parser.add_argument('--batch', default=64, help='batch size')
-parser.add_argument('--iter', default=200000, help='maximum iterations')
-parser.add_argument('--code', default=128,
+parser.add_argument('--batch', default=64, type=int, help='batch size')
+parser.add_argument('--iter', default=200000, type=int,
+                    help='maximum iterations')
+parser.add_argument('--code', default=128, type=int,
                     help='size of code to input generator')
 parser.add_argument('path', metavar='PATH', type=str,
                     help='Path to image directory')
@@ -56,10 +57,12 @@ def sample_data(path, batch_size):
 
 def train(args, n_class, generator, discriminator):
     dataset = iter(sample_data(args.path, args.batch))
-    pbar = tqdm(range(args.iter))
+    pbar = tqdm(range(args.iter), dynamic_ncols=True)
 
     requires_grad(generator, False)
     requires_grad(discriminator, True)
+
+    preset_code = torch.randn(n_class * 5, args.code).to(device)
 
     disc_loss_val = 0
     gen_loss_val = 0
@@ -102,9 +105,7 @@ def train(args, n_class, generator, discriminator):
         if (i + 1) % 100 == 0:
             generator.train(False)
             input_class = torch.arange(n_class).long().repeat(5).to(device)
-            fake_image = generator(
-                torch.randn(n_class * 5, args.code).to(device),
-                input_class)
+            fake_image = generator(preset_code, input_class)
             generator.train(True)
             utils.save_image(fake_image.cpu().data,
                              f'sample/{str(i + 1).zfill(7)}.png',
