@@ -167,4 +167,4 @@ if __name__ == '__main__':
         trace = np.trace(sample_cov) + np.trace(real_cov) \
             - 2 * np.trace(cov_sqrt)
 
-        print(f'FID score of class {id} ({class_name}):', trace)
+        print(f'FID score of class {id} ({class_name}):', mean_norm + trace)
