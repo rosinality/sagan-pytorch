@@ -147,6 +147,8 @@ if __name__ == '__main__':
         sample_cov = np.cov(sample_feature, rowvar=False)
         del sample_feature
 
+        # Came from https://github.com/bioinf-jku/TTUR
+
         cov_sqrt, _ = linalg.sqrtm(sample_cov @ real_cov, disp=False)
         if not np.isfinite(cov_sqrt).all():
             print('Product of cov matrices is singular')
