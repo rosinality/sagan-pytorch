@@ -65,7 +65,7 @@ def load_patched_inception_v3():
     inception.eval()
     inception.forward = forward.__get__(inception, Inception3)
 
-    return inception
+    return inception.to(device)
 
 
 transform = transforms.Compose([
