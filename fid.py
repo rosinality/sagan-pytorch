@@ -26,8 +26,7 @@ parser.add_argument('model', metavar='MODEL',
                     help='checkpoint of generator model')
 
 
-# device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-device = torch.device('cpu')
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 
 def forward(self, x):
@@ -106,8 +105,7 @@ if __name__ == '__main__':
     total_class = len(class2id)
 
     generator = Generator(args.code, total_class).to(device)
-    generator.load_state_dict(torch.load(args.model,
-                                         map_location=lambda storage, loc: storage))
+    generator.load_state_dict(torch.load(args.model))
     generator.eval()
 
     for class_name, id in class2id.items():
