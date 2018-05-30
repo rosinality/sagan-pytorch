@@ -1,6 +1,6 @@
 # sagan-pytorch
 
-Self-Attention Generative Adversarial Networks (SAGAN, https://arxiv.org/abs/1805.08318) in PyTorch 
+Self-Attention Generative Adversarial Networks (SAGAN, https://arxiv.org/abs/1805.08318) in PyTorch
 
 Usage:
 
@@ -11,3 +11,5 @@ Input directory should be structured like this (as with torchvision.datasets.Ima
 > PATH/class1 <br/>
 > PATH/class2 <br/>
 > ...
+
+Code for evaulate FID score came from https://github.com/bioinf-jku/TTUR
