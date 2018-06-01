@@ -68,7 +68,7 @@ def spectral_norm(module, name='weight'):
 
 
 def spectral_init(module, gain=1):
-    init.kaiming_uniform_(module.weight, gain)
+    init.xavier_uniform_(module.weight, gain)
     if module.bias is not None:
         module.bias.data.zero_()
 
@@ -80,7 +80,7 @@ def leaky_relu(input):
 
 
 class SelfAttention(nn.Module):
-    def __init__(self, in_channel, gain=1):
+    def __init__(self, in_channel, gain=2 ** 0.5):
         super().__init__()
 
         self.query = spectral_init(nn.Conv1d(in_channel, in_channel // 8, 1),
@@ -130,40 +130,63 @@ class ConditionalNorm(nn.Module):
 class ConvBlock(nn.Module):
     def __init__(self, in_channel, out_channel, kernel_size=[3, 3],
                  padding=1, stride=1, n_class=None, bn=True,
-                 activation=F.relu, upsample=True, self_attention=False):
+                 activation=F.relu, upsample=True, downsample=False):
         super().__init__()
 
-        self.conv = spectral_init(nn.Conv2d(in_channel, out_channel,
-                                            kernel_size, stride, padding,
-                                            bias=False if bn else True))
+        gain = 2 ** 0.5
+
+        self.conv1 = spectral_init(nn.Conv2d(in_channel, out_channel,
+                                             kernel_size, stride, padding,
+                                             bias=False if bn else True),
+                                   gain=gain)
+        self.conv2 = spectral_init(nn.Conv2d(out_channel, out_channel,
+                                             kernel_size, stride, padding,
+                                             bias=False if bn else True),
+                                   gain=gain)
+
+        self.skip_proj = False
+        if in_channel != out_channel or upsample or downsample:
+            self.conv_skip = spectral_init(nn.Conv2d(in_channel, out_channel,
+                                                     1, 1, 0))
+            self.skip_proj = True
 
         self.upsample = upsample
+        self.downsample = downsample
         self.activation = activation
         self.bn = bn
         if bn:
-            self.norm = ConditionalNorm(out_channel, n_class)
-
-        self.self_attention = self_attention
-        if self_attention:
-            self.attention = SelfAttention(out_channel, 1)
+            self.norm1 = ConditionalNorm(in_channel, n_class)
+            self.norm2 = ConditionalNorm(out_channel, n_class)
 
     def forward(self, input, class_id=None):
         out = input
-        if self.upsample:
-            out = F.upsample(out, scale_factor=2)
-
-        out = self.conv(out)
 
         if self.bn:
-            out = self.norm(out, class_id)
+            out = self.norm1(out, class_id)
+        out = self.activation(out)
+        if self.upsample:
+            out = F.upsample(out, scale_factor=2)
+        out = self.conv1(out)
+        if self.bn:
+            out = self.norm2(out, class_id)
+        out = self.activation(out)
+        out = self.conv2(out)
 
-        if self.activation is not None:
-            out = self.activation(out)
+        if self.downsample:
+            out = F.avg_pool2d(out, 2)
 
-        if self.self_attention:
-            out = self.attention(out)
+        if self.skip_proj:
+            skip = input
+            if self.upsample:
+                skip = F.upsample(skip, scale_factor=2)
+            skip = self.conv_skip(skip)
+            if self.downsample:
+                skip = F.avg_pool2d(skip, 2)
 
-        return out
+        else:
+            skip = input
+
+        return out + skip
 
 
 class Generator(nn.Module):
@@ -173,21 +196,27 @@ class Generator(nn.Module):
         self.lin_code = spectral_init(nn.Linear(code_dim, 4 * 4 * 512))
         self.conv = nn.ModuleList([ConvBlock(512, 512, n_class=n_class),
                                    ConvBlock(512, 512, n_class=n_class),
-                                   ConvBlock(512, 512, n_class=n_class,
-                                             self_attention=True),
                                    ConvBlock(512, 256, n_class=n_class),
-                                   ConvBlock(256, 128, n_class=n_class)])
+                                   SelfAttention(256),
+                                   ConvBlock(256, 128, n_class=n_class),
+                                   ConvBlock(128, 64, n_class=n_class)])
 
-        self.colorize = spectral_init(nn.Conv2d(128, 3, [3, 3], padding=1))
+        self.bn = nn.BatchNorm2d(64)
+        self.colorize = spectral_init(nn.Conv2d(64, 3, [3, 3], padding=1))
 
     def forward(self, input, class_id):
         out = self.lin_code(input)
-        out = F.relu(out)
         out = out.view(-1, 512, 4, 4)
 
         for conv in self.conv:
-            out = conv(out, class_id)
+            if isinstance(conv, ConvBlock):
+                out = conv(out, class_id)
 
+            else:
+                out = conv(out)
+
+        out = self.bn(out)
+        out = F.relu(out)
         out = self.colorize(out)
 
         return F.tanh(out)
@@ -197,17 +226,27 @@ class Discriminator(nn.Module):
     def __init__(self, n_class=10):
         super().__init__()
 
-        def conv(in_channel, out_channel, stride=2,
-                 self_attention=False):
-            return ConvBlock(in_channel, out_channel, stride=stride,
-                             bn=False, activation=leaky_relu,
-                             upsample=False)
+        def conv(in_channel, out_channel, downsample=True):
+            return ConvBlock(in_channel, out_channel,
+                             bn=False,
+                             upsample=False, downsample=downsample)
 
-        self.conv = nn.Sequential(conv(3, 128),
-                                  conv(128, 256),
-                                  conv(256, 512, stride=1,
-                                       self_attention=True),
-                                  conv(512, 512),
+        gain = 2 ** 0.5
+
+        self.pre_conv = nn.Sequential(spectral_init(nn.Conv2d(3, 64, 3,
+                                                              padding=1),
+                                                    gain=gain),
+                                      nn.ReLU(),
+                                      spectral_init(nn.Conv2d(64, 64, 3,
+                                                              padding=1),
+                                                    gain=gain),
+                                      nn.AvgPool2d(2))
+        self.pre_skip = spectral_init(nn.Conv2d(3, 64, 1))
+
+        self.conv = nn.Sequential(conv(64, 128),
+                                  conv(128, 256, downsample=False),
+                                  SelfAttention(256),
+                                  conv(256, 512),
                                   conv(512, 512),
                                   conv(512, 512))
 
@@ -218,7 +257,11 @@ class Discriminator(nn.Module):
         self.embed = spectral_norm(self.embed)
 
     def forward(self, input, class_id):
-        out = self.conv(input)
+        out = self.pre_conv(input)
+        out = out + self.pre_skip(F.avg_pool2d(input, 2))
+
+        out = self.conv(out)
+        out = F.relu(out)
         out = out.view(out.size(0), out.size(1), -1)
         out = out.sum(2)
         out_linear = self.linear(out).squeeze(1)

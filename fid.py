@@ -13,8 +13,6 @@ from torchvision import datasets, transforms, utils
 from torchvision.datasets.folder import find_classes
 from torchvision.models import inception_v3, Inception3
 
-from model import Generator
-
 parser = argparse.ArgumentParser(description='FID score calculator')
 parser.add_argument('--img', required=True, help='path to image directory')
 parser.add_argument('--batch', default=64, type=int, help='batch size')
@@ -22,7 +20,9 @@ parser.add_argument('--sample', default=5000, type=int,
                     help='number of samples generated for evaluation')
 parser.add_argument('--code', default=128, type=int,
                     help='code size for generator')
-parser.add_argument('model', metavar='MODEL',
+parser.add_argument('--model', default='dcgan', choices=['dcgan', 'resnet'],
+                    help='choice model class')
+parser.add_argument('checkpoint', metavar='CHECKPOINT',
                     help='checkpoint of generator model')
 
 
@@ -104,8 +104,14 @@ if __name__ == '__main__':
     _, class2id = find_classes(args.img)
     total_class = len(class2id)
 
+    if args.model == 'dcgan':
+        from model import Generator
+
+    elif args.model == 'resnet':
+        from model_resnet import Generator
+
     generator = Generator(args.code, total_class).to(device)
-    generator.load_state_dict(torch.load(args.model))
+    generator.load_state_dict(torch.load(args.checkpoint))
     generator.eval()
 
     for class_name, id in class2id.items():

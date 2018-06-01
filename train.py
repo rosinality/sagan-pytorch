@@ -12,14 +12,21 @@ from torch.nn import functional as F
 from torch.utils.data import DataLoader
 from torchvision import datasets, transforms, utils
 
-from model import Generator, Discriminator
-
 parser = argparse.ArgumentParser(description='Self-Attention GAN trainer')
 parser.add_argument('--batch', default=64, type=int, help='batch size')
 parser.add_argument('--iter', default=200000, type=int,
                     help='maximum iterations')
 parser.add_argument('--code', default=128, type=int,
                     help='size of code to input generator')
+parser.add_argument('--lr_g', default=1e-4, type=float,
+                    help='learning rate of generator')
+parser.add_argument('--lr_d', default=4e-4, type=float,
+                    help='learning rate of discriminator')
+parser.add_argument('--n_d', default=1, type=int,
+                    help=('number of discriminator update '
+                          'per 1 generator update'))
+parser.add_argument('--model', default='dcgan', choices=['dcgan', 'resnet'],
+                    help='choice model class')
 parser.add_argument('path', metavar='PATH', type=str,
                     help='Path to image directory')
 
@@ -84,7 +91,7 @@ def train(args, n_class, generator, discriminator):
         loss.backward()
         d_optimizer.step()
 
-        if (i + 1) % 1 == 0:
+        if (i + 1) % args.n_d == 0:
             generator.zero_grad()
             requires_grad(generator, True)
             requires_grad(discriminator, False)
@@ -109,7 +116,7 @@ def train(args, n_class, generator, discriminator):
             generator.train(True)
             utils.save_image(fake_image.cpu().data,
                              f'sample/{str(i + 1).zfill(7)}.png',
-                             nrow=10, normalize=True, range=(-1, 1))
+                             nrow=n_class, normalize=True, range=(-1, 1))
 
         if (i + 1) % 10000 == 0:
             no = str(i + 1).zfill(7)
@@ -132,12 +139,18 @@ if __name__ == '__main__':
 
     n_class = len(glob.glob(os.path.join(args.path, '*/')))
 
+    if args.model == 'dcgan':
+        from model import Generator, Discriminator
+
+    elif args.model == 'resnet':
+        from model_resnet import Generator, Discriminator
+
     generator = Generator(args.code, n_class).to(device)
     discriminator = Discriminator(n_class).to(device)
 
     g_optimizer = optim.Adam(generator.parameters(),
-                             lr=1e-4, betas=(0, 0.9))
+                             lr=args.lr_g, betas=(0, 0.9))
     d_optimizer = optim.Adam(discriminator.parameters(),
-                             lr=4e-4, betas=(0, 0.9))
+                             lr=args.lr_d, betas=(0, 0.9))
 
     train(args, n_class, generator, discriminator)
