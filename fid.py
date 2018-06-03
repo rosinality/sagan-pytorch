@@ -114,6 +114,8 @@ if __name__ == '__main__':
     generator.load_state_dict(torch.load(args.checkpoint))
     generator.eval()
 
+    fids = []
+
     for class_name, id in class2id.items():
         dataloader = DataLoader(ImageData(os.path.join(args.img, class_name)),
                                 batch_size=args.batch, num_workers=4)
@@ -173,4 +175,9 @@ if __name__ == '__main__':
         trace = np.trace(sample_cov) + np.trace(real_cov) \
             - 2 * np.trace(cov_sqrt)
 
-        print(f'FID score of class {id} ({class_name}):', mean_norm + trace)
+        fid = mean_norm + trace
+
+        print(f'FID score of class {id} ({class_name}):', fid)
+        fids.append(fid)
+
+    print(f'Mean FID is: {sum(fids) / len(fids)}')

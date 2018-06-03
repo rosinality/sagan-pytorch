@@ -20,4 +20,6 @@ Code for evaulate FID score came from https://github.com/bioinf-jku/TTUR
 
 Sample from DCGAN generator (without residual connection) at 120k iteration. Seems like that model size is insufficient. FID is about 120. After this model is collapsed.
 
-Currently trying ResNet generator/discriminator. But it was hard to train ResNet model with generator learning rate 1e-4/discriminator learning rate 4e-4 schedule as in the paper. Maybe smaller learning rate of generator is preferable.
+![ResNet Sample](sample_resnet.png)
+
+Sample from ResNet generator 290k iteration. FID is about 64.8. Used imbalanced learning schedule for generator vs discriminator, namely, 1:5 update schedule. Sample quality seems like improved, might because increased model size and more stable learning schedule. Train resnet model with 1:1 update schedule was hard and unstable.
