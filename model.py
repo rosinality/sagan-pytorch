@@ -201,7 +201,7 @@ class Discriminator(nn.Module):
                  self_attention=False):
             return ConvBlock(in_channel, out_channel, stride=stride,
                              bn=False, activation=leaky_relu,
-                             upsample=False)
+                             upsample=False, self_attention=self_attention)
 
         self.conv = nn.Sequential(conv(3, 128),
                                   conv(128, 256),
